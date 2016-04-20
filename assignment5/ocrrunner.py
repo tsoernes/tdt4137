@@ -3,16 +3,19 @@ from load_prep import load, list_to_img
 import logging
 import numpy as np
 from PIL import Image
+from ann import ANN
 
 
 class OCRRunner:
-
     def __init__(self):
         logging.basicConfig(level=logging.DEBUG)
-        self.ann = ann_preset_1()
+        ann_preset = ann_preset_1()
         self.data_set = load()
+        self.ann = ANN(**ann_preset)
         self.ann.train_and_test(self.data_set.train_x, self.data_set.train_y,
-                                self.data_set.test_x, self.data_set.test_y, epochs=300, batch_size=100)
+                                self.data_set.test_x, self.data_set.test_y,
+                                epochs=100, batch_size=100, plot=True)
+        self.compare_samples_predictions()
 
     def compare_samples_predictions(self, n_samples=5):
         """
@@ -21,8 +24,7 @@ class OCRRunner:
         """
         samples_i = np.random.choice(len(self.data_set.test_x), size=n_samples)
         samples = self.data_set.test_x[samples_i]
-        predictions = self.ann.predict(samples)
-
+        predictions = self.ann.predict(samples)[0]
         for sample, prediction in zip(samples, predictions):
             prediction = chr(prediction + ord('a'))
             logging.info("Predicted: %s", prediction)

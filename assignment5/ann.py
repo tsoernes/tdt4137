@@ -30,10 +30,10 @@ class ANN:
         for i in range(len(nodes_per_layer)-1):
             weights.append(self.init_rand_weights(nodes_per_layer[i], nodes_per_layer[i+1]))
             weights[i].name = 'w' + str(i)
-        logging.debug('\tWeight layers: %s', len(weights))
+        # logging.debug('\tWeight layers: %s', len(weights))
 
         # Construct the layers with the given activation functions weights between them
-        logging.info('\tConstructing layers ...')
+        # logging.info('\tConstructing layers ...')
         for i in range(len(weights)):
             layers.append(self.model(layers[i], weights[i], act_funcs[i]))
 
@@ -43,9 +43,10 @@ class ANN:
         output_layer = layers[-1]
         cost = err_func(output_layer, input_labels)
         prediction = T.argmax(output_layer, axis=1)
+        prediction_value = T.max(output_layer, axis=1)
         updates = backprop_func(cost, weights, l_rate, **backprop_params)
 
-        logging.info('\tConstructing functions ...')
+        # logging.info('\tConstructing functions ...')
         self.trainer = theano.function(
             inputs=[input_data, input_labels],
             outputs=cost,
@@ -55,32 +56,14 @@ class ANN:
         )
         self.predictor = theano.function(
             inputs=[input_data],
-            outputs=prediction,
+            outputs=[prediction, prediction_value, output_layer],
             name='Predictor',
             allow_input_downcast=True
         )
 
-    def train(self, train_x, train_y, epochs=100, batch_size=128):
-        logging.info('Training ...')
-        logging.info('Epoch : Training set success rate')
-
-        for i in range(epochs):
-            # Run in batches for increased speed and to avoid running out of memory
-            for j in range(0, len(train_x), batch_size):
-                x_cases = train_x[j:j+batch_size]
-                y_cases = train_y[j:j+batch_size]
-                self.trainer(x_cases, y_cases)
-
-            tr_result = np.zeros(shape=(len(train_x)))
-            for k in range(0, len(train_x), batch_size):
-                tr_result[k:k+batch_size] = self.predictor(train_x[k:k+batch_size])
-            tr_success_rate = np.mean(np.argmax(train_y, axis=1) == tr_result)  # Success rate training data set
-
-            logging.info(i, ':',  "{:.4f}".format(tr_success_rate))
-
     def train_and_test(self, train_x, train_y, test_x, test_y, epochs=200, batch_size=150, plot=True):
         assert len(train_x) == len(train_y), ("", len(train_x), len(train_y))
-        logging.info('\tTraining and testing ...')
+        logging.info('\tTraining and testing for %s epochs ...', epochs)
         train_success_rates = []
         test_success_rates = []
         for i in range(epochs):
@@ -92,11 +75,17 @@ class ANN:
 
             tr_result = np.zeros(shape=(len(train_x)))
             for k in range(0, len(train_x), batch_size):
-                tr_result[k:k+batch_size] = self.predictor(train_x[k:k+batch_size])
+                tr_result[k:k+batch_size] = self.predictor(train_x[k:k+batch_size])[0]
             tr_success_rate = np.mean(np.argmax(train_y, axis=1) == tr_result)  # Success rate training data set
-            te_success_rate = np.mean(np.argmax(test_y, axis=1) == self.predictor(test_x))  # Success rate test data set
+            te_success_rate = np.mean(np.argmax(test_y, axis=1) == self.predictor(test_x)[0])  # Success rate test data set
             train_success_rates.append(tr_success_rate)
             test_success_rates.append(te_success_rate)
+
+            progress = i / epochs
+            if progress % 0.1 == 0:
+                logging.info('\tProgress: %s%% | Epoch: %s | Success rate (training, test): %s, %s',
+                             progress*100, i,
+                             "{:.4f}".format(max(train_success_rates)), "{:.4f}".format(max(test_success_rates)))
 
         logging.info('\tMax success rate (training | test): %s | %s',
                      "{:.4f}".format(max(train_success_rates)), "{:.4f}".format(max(test_success_rates)))

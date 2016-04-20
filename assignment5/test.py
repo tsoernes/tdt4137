@@ -1,2 +1,2 @@
-import theano
-theano.test()
+a = (5,3)
+print(a+2)
