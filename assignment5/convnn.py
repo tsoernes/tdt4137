@@ -5,7 +5,7 @@ import logging
 from matplotlib import pyplot as plt
 
 
-class ANN:
+class CONVNN:
     def __init__(self, nodes_per_layer, act_funcs, err_func, backprop_func, backprop_params, l_rate=.001):
         """
         layer_shape - number of nodes per layer, including input and output layers

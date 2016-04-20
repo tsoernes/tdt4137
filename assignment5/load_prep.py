@@ -2,6 +2,7 @@ import numpy as np
 from PIL import Image
 import os
 from utils import *
+import logging
 
 TEST_TO_TRAIN_RATIO = 0.9
 CHARS_PATH = './chars74k-lite/chars74k-lite/'
@@ -20,15 +21,36 @@ def convert_y(y, n_classes):
     return arr
 
 
-def img_to_list(img_path, nbits=8):
-    normalized_floats = np.asarray(Image.open(img_path)).astype(float) / (2**nbits-1)
-    return normalized_floats.flatten()
+def load_img(img_path, img_mode='L'):
+    try:
+        img = Image.open(img_path).convert(img_mode)
+        return img
+    except AttributeError as e:
+        logging.error("Error: %s \n Path: %s", e, img_path)
 
 
-def list_to_img(img, nbits=8):
-    img_mul = img * (2**nbits-1)
-    img_ints = np.rint(img_mul)
-    return img_ints.astype(int)
+def img_to_list(img, flatten, nbits=8, img_mode='L'):
+    img = img.convert(img_mode)
+    img_bytes = img.tobytes("raw", img_mode)
+    ints = np.fromstring(img_bytes, dtype='uint8')
+    scaled_floats = ints.astype(dtype='float32') / (2**nbits - 1)
+    if flatten:
+        return scaled_floats.flatten()
+    else:
+        return scaled_floats.reshape(img.size)
+
+
+def list_to_img(img_as_list, img_size=None, nbits=8, img_mode='L'):
+    assert type(img_as_list) == np.ndarray, type(img_as_list)
+    if img_size is None:
+        assert img_as_list.ndim == 2, ("Can't handle flattened arrays if not passed an img size", img_as_list.shape)
+        img_size = img_as_list.shape
+    scaled = img_as_list * (2**nbits - 1)
+    rounded = np.rint(scaled)
+    ints = rounded.astype(dtype='uint8')
+    img = Image.new(img_mode, img_size)
+    img.putdata(ints.flatten())
+    return img
 
 
 def shuffle_in_unison(a, b):
@@ -42,6 +64,10 @@ def shuffle_in_unison(a, b):
     return shuffled_a, shuffled_b
 
 
+def invert_image(img_list):
+    return 1 - img_list
+
+
 def load():
     # todo only load a percent of data set
     folders = os.listdir(CHARS_PATH)
@@ -53,7 +79,7 @@ def load():
         folder = os.listdir(CHARS_PATH + alpha)
         for filename in folder:
             path = CHARS_PATH + alpha + "/" + filename
-            x.append(img_to_list(path))
+            x.append(img_to_list(load_img(path), flatten=True))
             y.append(num)
 
     x_shuffled, y_shuffled = shuffle_in_unison(np.array(x), np.array(y))
