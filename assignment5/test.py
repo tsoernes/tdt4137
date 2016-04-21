@@ -71,7 +71,7 @@ def test_conv_layer():
     n_feature_maps = 10
     convpool_layer = ConvPoolLayer(image_shape, filter_shape, T.nnet.relu)
 
-    x = T.fmatrix('X')
+    x = T.matrix('X')
     y = T.fmatrix('Y')
 
     convpool_layer.activate(x)

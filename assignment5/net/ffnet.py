@@ -30,8 +30,8 @@ class FFNet:
             weights.append(self.init_rand_weights(nodes_per_layer[i], nodes_per_layer[i+1]))
             weights[i].name = 'w' + str(i)
         # logging.debug('\tWeight layers: %s', len(weights))
-        logging.info('\tNumber of parameters to train: %s',
-                     sum(param.get_value(borrow=True, return_internal_type=True).size for param in weights))
+        #logging.info('\tNumber of parameters to train: %s',
+        #             sum(param.get_value(borrow=True, return_internal_type=True).size for param in weights))
         # Construct the layers with the given activation functions weights between them
         # logging.info('\tConstructing layers ...')
         for i in range(len(weights)):

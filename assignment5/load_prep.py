@@ -64,11 +64,7 @@ def shuffle_in_unison(a, b):
     return shuffled_a, shuffled_b
 
 
-def invert_image(img_list):
-    return 1 - img_list
-
-
-def load(prep_funcs=None):
+def load(prep_funcs=()):
     folders = os.listdir(CHARS_PATH)
     assert len(folders) == 26
 
@@ -106,7 +102,5 @@ def load(prep_funcs=None):
 
     train_x = np.asarray([img_to_list(img, flatten=True) for img in train_x])
     test_x = np.asarray([img_to_list(img, flatten=True) for img in test_x])
-    #print(train_x.shape, train_y.shape, test_x.shape, test_y.shape)
-    #print(train_x, train_y, test_x, test_y)
     return DataSet(train_x, train_y, test_x, test_y)
 
