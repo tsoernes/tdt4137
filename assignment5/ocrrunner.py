@@ -1,34 +1,56 @@
-from ann_preset import ann_preset_1
-from load_prep import load, list_to_img
 import logging
+
 import numpy as np
 from PIL import Image
-from ann import ANN
+from net.ffnet import FFNet
+from net.convnet import ConvNet
+from net.ffnet_preset import ffnet_preset_1
+from net.convnet_preset import convet_preset_1
+from utils import edge_enhance, edge_enhance_more
 from detector import detect
+from load_prep import load, list_to_img
+import timeit
 
 
 class OCRRunner:
     def __init__(self):
         logging.basicConfig(level=logging.DEBUG)
-        ann_preset = ann_preset_1()
-        self.data_set = load()
-        self.ann = ANN(**ann_preset)
-        self.ann.train_and_test(self.data_set.train_x, self.data_set.train_y,
-                                self.data_set.test_x, self.data_set.test_y,
-                                epochs=100, batch_size=100, plot=False)
+        prep_funcs = [edge_enhance, edge_enhance_more]
+        self.data_set = load(prep_funcs)
+        #self.run_convnet()
+        self.run_ffnet()
 
+    def run_ocr(self, ann):
         ocr_img_path = "./ocr-test4.png"
-        #for window_size in range(58, 63):
-        detect(ocr_img_path, self.ann, window_size=150, stride=10)
+        # for window_size in range(58, 63):
+        detect(ocr_img_path, ann, window_size=150, stride=10)
 
-    def compare_samples_predictions(self, n_samples=5):
+    def compare_run_times(self):
+        print(timeit.timeit(self.run_convnet, number=1))
+        print(timeit.timeit(self.run_ffnet, number=1))
+
+    def run_convnet(self):
+        ann_preset = convet_preset_1()
+        convnet = ConvNet(**ann_preset)
+        convnet.train_and_test(self.data_set.train_x, self.data_set.train_y,
+                                    self.data_set.test_x, self.data_set.test_y,
+                                    epochs=100, plot=True)
+
+    def run_ffnet(self):
+        ann_preset = ffnet_preset_1()
+        ffnet = FFNet(**ann_preset)
+        ffnet.train_and_test(self.data_set.train_x, self.data_set.train_y,
+                                  self.data_set.test_x, self.data_set.test_y,
+                                  epochs=100, batch_size=10, plot=True)
+
+    def compare_samples_predictions(self, ann, n_samples=5):
         """
         Take some samples from the test data set, print prediction and view corresponding images on screen
         :param n_samples:
         """
         samples_i = np.random.choice(len(self.data_set.test_x), size=n_samples)
         samples = self.data_set.test_x[samples_i]
-        predictions = self.ann.predict(samples)['char_as_int']
+        predictions = ann.predict(samples)['char_as_int']
         for sample, prediction in zip(samples, predictions):
             prediction = chr(prediction + ord('a'))
             logging.info("Predicted: %s", prediction)

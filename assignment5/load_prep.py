@@ -68,8 +68,7 @@ def invert_image(img_list):
     return 1 - img_list
 
 
-def load():
-    # todo only load a percent of data set
+def load(prep_funcs=None):
     folders = os.listdir(CHARS_PATH)
     assert len(folders) == 26
 
@@ -79,10 +78,12 @@ def load():
         folder = os.listdir(CHARS_PATH + alpha)
         for filename in folder:
             path = CHARS_PATH + alpha + "/" + filename
-            x.append(img_to_list(load_img(path), flatten=True))
+            x.append(load_img(path))
             y.append(num)
+    logging.info("\tLoaded %s examples. Splitting into testing and training data sets with a ratio of %s",
+                 len(x), TEST_TO_TRAIN_RATIO)
 
-    x_shuffled, y_shuffled = shuffle_in_unison(np.array(x), np.array(y))
+    x_shuffled, y_shuffled = shuffle_in_unison(np.asarray(x, dtype=object), np.asarray(y))
     y_shuffled = convert_y(y_shuffled, N_CLASSES)
     split_index = int(len(x_shuffled)*TEST_TO_TRAIN_RATIO)
     train_x = x_shuffled[:split_index]
@@ -90,5 +91,22 @@ def load():
     test_x = x_shuffled[split_index:]
     test_y = y_shuffled[split_index:]
 
+    train_x_prepped = []
+    # The y-values (labels) themselves are not prepped/changed in any way, but since there are more training examples
+    # there has to be more labels.
+    train_y_prepped = []
+    for prep_func in prep_funcs:
+        train_x_prepped.extend(map(prep_func, train_x))
+        train_y_prepped.extend(train_y)
+    if prep_funcs:
+        train_x_prepped.extend(train_x)
+        train_y_prepped.extend(train_y)
+        logging.debug('\tExpanded training data set from %s examples to %s examples', len(train_x), len(train_x_prepped))
+        train_x, train_y = shuffle_in_unison(np.asarray(train_x_prepped, dtype=object), np.asarray(train_y_prepped))
+
+    train_x = np.asarray([img_to_list(img, flatten=True) for img in train_x])
+    test_x = np.asarray([img_to_list(img, flatten=True) for img in test_x])
+    #print(train_x.shape, train_y.shape, test_x.shape, test_y.shape)
+    #print(train_x, train_y, test_x, test_y)
     return DataSet(train_x, train_y, test_x, test_y)
 

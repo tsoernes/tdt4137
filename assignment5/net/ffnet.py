@@ -5,7 +5,7 @@ import logging
 from matplotlib import pyplot as plt
 
 
-class CONVNN:
+class FFNet:
     def __init__(self, nodes_per_layer, act_funcs, err_func, backprop_func, backprop_params, l_rate=.001):
         """
         layer_shape - number of nodes per layer, including input and output layers
@@ -30,7 +30,8 @@ class CONVNN:
             weights.append(self.init_rand_weights(nodes_per_layer[i], nodes_per_layer[i+1]))
             weights[i].name = 'w' + str(i)
         # logging.debug('\tWeight layers: %s', len(weights))
-
+        logging.info('\tNumber of parameters to train: %s',
+                     sum(param.get_value(borrow=True, return_internal_type=True).size for param in weights))
         # Construct the layers with the given activation functions weights between them
         # logging.info('\tConstructing layers ...')
         for i in range(len(weights)):
@@ -91,6 +92,7 @@ class CONVNN:
         logging.info('\tMax success rate (training | test): %s | %s',
                      "{:.4f}".format(max(train_success_rates)), "{:.4f}".format(max(test_success_rates)))
         if plot:
+            plt.title('Fully Connected Feed Forward Net')
             plt.plot(train_success_rates)
             plt.plot(test_success_rates)
             plt.legend(['Train', 'Test'], loc="best")

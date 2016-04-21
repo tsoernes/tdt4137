@@ -1,15 +1,15 @@
 import theano
 from theano import tensor as T
+import numpy as np
 
-
-def bp_sgd(cost, weights, l_rate, **kwargs):
+def bp_sgd(cost, params, l_rate, **kwargs):
     """
     Backpropagation function: Stochastic gradient descent
     """
-    grads = T.grad(cost=cost, wrt=weights)
+    grads = T.grad(cost=cost, wrt=params)
     updates = []
-    for p, g in zip(weights, grads):
-        updates.append([p, p - g * l_rate])
+    for p, g in zip(params, grads):
+        updates.append([p, p - g*l_rate])
     return updates
 
 
@@ -34,3 +34,19 @@ def err_sum_squared(x, y):
     Error function: Sum of the squared errors
     """
     return T.sum((x-y)**2)
+
+
+def init_rand_weights(shape):
+    """
+    Generate random weights (from the standard normal distribution, scaled) in an x-by-y matrix.
+    Should be used by most layers.
+    """
+    return theano.shared(
+        np.asarray(np.random.randn(*shape) * 0.01, dtype=theano.config.floatX))
+
+
+def init_zero_weights(shape):
+    """
+    Generate weighs with value 0. Should be used for Softmax layers.
+    """
+    return theano.shared(np.zeros(shape, dtype=theano.config.floatX))
