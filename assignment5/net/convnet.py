@@ -167,7 +167,9 @@ class ConvPoolLayer:
         :param init_bias_weight_func:
         """
         self.input_shape = input_shape
+        self.n_feature_maps = n_feature_maps
         self.filter_shape = (n_feature_maps, input_shape[1]) + local_receptive_field_size
+        self.local_receptive_field_size = local_receptive_field_size
         self.act_func = act_func
         self.pool_size = pool_size
         self.weights = init_rand_weights(self.filter_shape, "conv2poolWeights")
@@ -197,4 +199,15 @@ class ConvPoolLayer:
     def output(self):
         assert self.output_values is not None, 'Asking for output before activating layer'
         return self.output_values
+
+    def get_output_shape(self):
+        batch_size = self.input_shape[0]
+        if self.local_receptive_field_size[0] != self.local_receptive_field_size[1] \
+                or self.pool_size[0] != self.pool_size[1]:
+            raise NotImplementedError("I don't know how to calculate output shape when the local receptive field"
+                                      "or the pool is non-square")
+        after_conv = self.input_shape[2] - self.local_receptive_field_size[0]
+        after_pool = np.ceil(after_conv/2.0)
+        shape = (batch_size, self.n_feature_maps, after_pool, after_pool)
+        return shape
 
