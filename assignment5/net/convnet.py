@@ -1,6 +1,7 @@
 import theano
 from theano import tensor as T
-from theano.tensor.signal.downsample import max_pool_2d
+from theano.tensor.signal.downsample import max_pool_2d  # deprecated
+from theano.tensor.signal.pool import pool_2d
 import numpy as np
 import logging
 from matplotlib import pyplot as plt
@@ -11,10 +12,15 @@ class ConvNet:
     def __init__(self, layers, err_func, backprop_func, backprop_params,
                  l_rate=.001, batch_size=10):
         """
-        err_func - cost/error function.
-        backprop_func - backpropagation function.
-        l_rate - Learning rate
+        :param layers:
+        :param err_func: cost/error function
+        :param backprop_func: backpropagation function
+        :param backprop_params: parameters to pass to backprop function
+        :param l_rate: learning rate
+        :param batch_size: (mini-) batch size. In comparison to regular nets
+        :return:
         """
+        T.nnet.
         self.batch_size = batch_size
         logging.info('\tConstructing ANN with %s layers. Learning rate: %s ', len(layers), l_rate)
         params = []  # Regular weights and bias weights; e.g. everything to be adjusted during training
@@ -35,12 +41,12 @@ class ConvNet:
 
         output_layer = layers[-1].output_values
         cost = err_func(output_layer, input_labels)
-        updates = backprop_func(cost, params, l_rate)
+        updates = backprop_func(cost, params, l_rate, backprop_params)
 
         prediction = T.argmax(output_layer, axis=1)
         prediction_value = T.max(output_layer, axis=1)
 
-        # logging.info('\tConstructing functions ...')
+        logging.debug('\tConstructing functions ...')
         self.trainer = theano.function(
             inputs=[input_data, input_labels],
             outputs=cost,
@@ -146,23 +152,24 @@ class FullyConnectedLayer:
 class SoftMaxLayer(FullyConnectedLayer):
     def __init__(self, n_in, n_out):
         super(SoftMaxLayer, self).__init__(n_in, n_out, T.nnet.softmax)
+        # todo find out how to initialize softmaxlayer weights as zero, and if it gives better results/faster training
 
 
 class ConvPoolLayer:
     conv_func = staticmethod(T.nnet.conv2d)
-    pool_func = staticmethod(max_pool_2d)
+    pool_func = staticmethod(pool_2d)
 
     def __init__(self, input_shape, n_feature_maps, act_func,
-                 local_receptive_field_size=(5, 5), pool_size=(2, 2)):
+                 local_receptive_field_size=(5, 5), pool_size=(2, 2), pool_mode='max'):
         """
         Generate a convolutional and a subsequent pooling layer with one bias node for each channel in the pooling layer.
         :param input_shape: tuple(batch size, input channels, input rows, input columns) where
             input_channels = number of feature maps in upstream layer
             input rows, input columns = output size of upstream layer
         :param n_feature_maps: number of feature maps/filters in this layer
-            filter rows, filter columns = size of local receptive field
-        :param pool_size:
-        :param act_func:
+        :param local_receptive_field_size: (filter rows, filter columns) = size of local receptive field
+        :param pool_size: (rows, columns)
+        :param act_func: activation function to be applied to the output from the pooling layer
         :param init_weight_func:
         :param init_bias_weight_func:
         """
@@ -172,6 +179,7 @@ class ConvPoolLayer:
         self.local_receptive_field_size = local_receptive_field_size
         self.act_func = act_func
         self.pool_size = pool_size
+        self.pool_mode = pool_mode
         self.weights = init_rand_weights(self.filter_shape, "conv2poolWeights")
         self.bias_weights = init_rand_weights((n_feature_maps,), "conv2poolBiasWeights")
         self.params = [self.weights, self.bias_weights]
@@ -192,7 +200,11 @@ class ConvPoolLayer:
         pooled = self.pool_func(
             input=conv,
             ds=self.pool_size,
-            ignore_border=True
+            ignore_border=True, # If the pool size does not evenly divide the input,
+                                # then ignoring the border will pool from padded zeros.
+                                # This is usually the desired behaviour when max pooling.
+            # st=(1,1) # Stride size. Defaults to pool size, e.g. non-overlapping pooling regions
+            mode=self.pool_mode  # ‘max’, ‘sum’, ‘average_inc_pad’ or ‘average_exc_pad’
         )
         self.output_values = self.act_func(pooled + self.bias_weights.dimshuffle('x', 0, 'x', 'x'))
 

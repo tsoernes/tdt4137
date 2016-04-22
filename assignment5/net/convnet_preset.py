@@ -40,32 +40,10 @@ def convnet_preset_1():
     return params
 
 
-def convnet_preset_2():
-    # Todo: check and infer layer input/output sizes and params
-    batch_size = 10
-    params = {
-        'layers': [
-            ConvPoolLayer(
-                input_shape=(batch_size, 1, 20, 20),
-                n_feature_maps=15,
-                act_func=T.nnet.relu
-            ),
-            FullyConnectedLayer(15*8*8, 100, T.nnet.sigmoid),
-            SoftMaxLayer(100, N_CLASSES)
-        ],
-        'err_func': err_sum_squared,
-        'backprop_func': bp_rms_prop,
-        'backprop_params': {
-            'rho': 0.9,
-            'epsilon': 1e-6
-        },
-        'l_rate': 0.0005,
-        'batch_size': batch_size
-    }
-    return params
-
-
 def convnet_preset_ffnet():
+    """
+    Same params as the ffnet, in order to compare performance between the two implementations
+    """
     batch_size = 10
     params = {
         'layers': [
