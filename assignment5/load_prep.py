@@ -16,39 +16,57 @@ def convert_y(y, n_classes):
     E.g. ([3], 10) --> [[0,0,0,1,0,0,0,0,0,0]]
     """
     y = y.flatten()
-    arr = np.zeros((len(y), n_classes))
-    arr[np.arange(len(y)), y] = 1
-    return arr
+    assert np.max(y) < n_classes, np.min(y) > 0
+    one_hot = np.zeros((len(y), n_classes))
+    one_hot[np.arange(len(y)), y] = 1
+    return one_hot
 
 
-def load_img(img_path, img_mode='L'):
+def load_img(img_path):
+    """
+    :param img_path:
+    :return: PIL image
+    """
     try:
-        img = Image.open(img_path).convert(img_mode)
+        img = Image.open(img_path).convert('L')
         return img
     except AttributeError as e:
         logging.error("Error: %s \n Path: %s", e, img_path)
+        raise
 
 
-def img_to_list(img, flatten, nbits=8, img_mode='L'):
-    img = img.convert(img_mode)
-    img_bytes = img.tobytes("raw", img_mode)
-    ints = np.fromstring(img_bytes, dtype='uint8')
-    scaled_floats = ints.astype(dtype='float32') / (2**nbits - 1)
+def img_to_list(img, flatten):
+    """
+    Can only handle 8-bit gray-scale
+    :param img:
+    :param flatten:
+    :return: numpy.ndarray
+    """
+    img = img.convert('L')
+    img_bytes = img.tobytes("raw", 'L')
+    ints = np.fromstring(img_bytes, dtype='uint16')
+    scaled_floats = ints.astype(dtype='float32') / (2**8 - 1)
     if flatten:
         return scaled_floats.flatten()
     else:
         return scaled_floats.reshape(img.size)
 
 
-def list_to_img(img_as_list, img_size=None, nbits=8, img_mode='L'):
+def list_to_img(img_as_list, img_size=None):
+    """
+    Can only handle 8-bit gray-scale
+    :param img_as_list:
+    :param img_size:
+    :return: PIL image
+    """
     assert type(img_as_list) == np.ndarray, type(img_as_list)
     if img_size is None:
-        assert img_as_list.ndim == 2, ("Can't handle flattened arrays if not passed an img size", img_as_list.shape)
+        assert img_as_list.ndim == 2, ("Can't handle flattened arrays if not passed img_size", img_as_list.shape)
         img_size = img_as_list.shape
-    scaled = img_as_list * (2**nbits - 1)
+    scaled = img_as_list * (2**8 - 1)
     rounded = np.rint(scaled)
     ints = rounded.astype(dtype='uint8')
-    img = Image.new(img_mode, img_size)
+    img = Image.new('L', img_size)
     img.putdata(ints.flatten())
     return img
 
@@ -65,8 +83,14 @@ def shuffle_in_unison(a, b):
 
 
 def load(prep_funcs=()):
+    """
+    Load images, convert to lists of scaled floats, split into training and test set, then expand training set by
+    applying the pre-processing techniques in prep_funcs
+    :param prep_funcs:
+    :return:
+    """
     folders = os.listdir(CHARS_PATH)
-    assert len(folders) == 26
+    assert len(folders) == N_CLASSES
 
     x = []
     y = []
@@ -88,16 +112,17 @@ def load(prep_funcs=()):
     test_y = y_shuffled[split_index:]
 
     train_x_prepped = []
+    train_y_prepped = []
     # The y-values (labels) themselves are not prepped/changed in any way, but since there are more training examples
     # there has to be more labels.
-    train_y_prepped = []
     for prep_func in prep_funcs:
         train_x_prepped.extend(map(prep_func, train_x))
         train_y_prepped.extend(train_y)
     if prep_funcs:
         train_x_prepped.extend(train_x)
         train_y_prepped.extend(train_y)
-        logging.debug('\tExpanded training data set from %s examples to %s examples', len(train_x), len(train_x_prepped))
+        logging.debug('\tExpanded training data set from %s examples to %s examples',
+                      len(train_x), len(train_x_prepped))
         train_x, train_y = shuffle_in_unison(np.asarray(train_x_prepped, dtype=object), np.asarray(train_y_prepped))
 
     train_x = np.asarray([img_to_list(img, flatten=True) for img in train_x])

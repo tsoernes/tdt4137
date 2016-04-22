@@ -1,6 +1,5 @@
 import numpy as np
 
-a = [1,2]
-b = np.array([3,4])
-a.extend(b)
-print(a)
+raise NotImplementedError("I don't know how to calculate output shape when the local receptive field,",
+                          (3,4), ", or the pool,",
+                          (2,2), ", is non-square")

@@ -10,7 +10,7 @@ from net.net_utils import init_rand_weights, init_zero_weights, err_neg_log_like
 
 class ConvNet:
     def __init__(self, layers, err_func, backprop_func, backprop_params,
-                 l_rate=.001, batch_size=10):
+                 l_rate, batch_size=10):
         """
         :param layers:
         :param err_func: cost/error function
@@ -20,9 +20,9 @@ class ConvNet:
         :param batch_size: (mini-) batch size. In comparison to regular nets
         :return:
         """
-        T.nnet.
         self.batch_size = batch_size
         logging.info('\tConstructing ANN with %s layers. Learning rate: %s ', len(layers), l_rate)
+
         params = []  # Regular weights and bias weights; e.g. everything to be adjusted during training
         for layer in layers:
             for param in layer.params:
@@ -64,8 +64,9 @@ class ConvNet:
         )
 
     def train_and_test(self, train_x, train_y, test_x, test_y, epochs=200, plot=True):
-        assert len(train_x) == len(train_y), (len(train_x), len(train_y))
-        assert len(test_x) == len(test_y), (len(test_x), len(test_y))
+        assert len(train_x) == len(train_y) and len(test_x) == len(test_y), \
+            ("Training", len(train_x), len(train_y), "or testing", len(test_x), len(test_y),
+             "data sets does not have the same amount of data as classifications")
         logging.info('\tTraining and testing for %s epochs ...', epochs)
 
         """
@@ -84,7 +85,6 @@ class ConvNet:
                 self.trainer(x_cases, y_cases)
 
             # Get success rate on training and test data set
-
             tr_result = np.zeros(shape=(n_training_batches*self.batch_size))
             te_result = np.zeros(shape=(n_testing_batches*self.batch_size))
             for k in range(n_training_batches):
@@ -200,9 +200,9 @@ class ConvPoolLayer:
         pooled = self.pool_func(
             input=conv,
             ds=self.pool_size,
-            ignore_border=True, # If the pool size does not evenly divide the input,
-                                # then ignoring the border will pool from padded zeros.
-                                # This is usually the desired behaviour when max pooling.
+            ignore_border=True,  # If the pool size does not evenly divide the input,
+                                 # then ignoring the border will pool from padded zeros.
+                                 # This is usually the desired behaviour when max pooling.
             # st=(1,1) # Stride size. Defaults to pool size, e.g. non-overlapping pooling regions
             mode=self.pool_mode  # ‘max’, ‘sum’, ‘average_inc_pad’ or ‘average_exc_pad’
         )
@@ -216,8 +216,9 @@ class ConvPoolLayer:
         batch_size = self.input_shape[0]
         if self.local_receptive_field_size[0] != self.local_receptive_field_size[1] \
                 or self.pool_size[0] != self.pool_size[1]:
-            raise NotImplementedError("I don't know how to calculate output shape when the local receptive field"
-                                      "or the pool is non-square")
+            raise NotImplementedError("I don't know how to calculate output shape when the local receptive field,",
+                                      self.local_receptive_field_size, ", or the pool,",
+                                      self.pool_size, ", is non-square")
         after_conv = self.input_shape[2] - self.local_receptive_field_size[0]
         after_pool = np.ceil(after_conv/2.0)
         shape = (batch_size, self.n_feature_maps, after_pool, after_pool)
