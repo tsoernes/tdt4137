@@ -23,6 +23,8 @@ class ConvNet:
         self.batch_size = batch_size
         logging.info('\tConstructing ANN with %s layers. Learning rate: %s ', len(layers), l_rate)
 
+        logging.info('\tConstructing ANN with %s layers. Learning rate: %s. Batch size: %s ',
+                     len(layers), l_rate, batch_size)
         params = []  # Regular weights and bias weights; e.g. everything to be adjusted during training
         for layer in layers:
             for param in layer.params:

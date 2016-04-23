@@ -3,16 +3,24 @@ from PIL import Image
 from PIL import ImageDraw
 from load_prep import load_img, img_to_list, list_to_img
 import logging
+from utils import edge_enhance, edge_enhance_more, mirror, invert
 
-
-PATCH_PROB_THRESHOLD = 0.99
 MAX_WIDTH = MAX_HEIGHT = 200
+prep_funcs = [invert]
 
-
-def detect(img_path, ann, window_size=20, stride=2):
+def detect(ann, img_path, resize_size=0, window_size=20, stride=2, prob_threshold=0.8):
     img = load_img(img_path)
     # Resize
-    # img_as_list = thumbnail(img_as_list, (MAX_WIDTH, MAX_HEIGHT))
+    if resize_size > 0:
+        img.thumbnail(resize_size, Image.ANTIALIAS)
+
+    # Display image with a sample box in order to visually determine window_size
+    logging.info("\tStarting OCR. Showing picture with example box of given window size")
+    imc_c = img.copy()
+    draw = ImageDraw.Draw(imc_c)
+    draw.rectangle([0, 0, window_size, window_size], fill=None, outline="red")
+    del draw
+    imc_c.show()
 
     # Create image patches
     logging.info("\tCreating image patches and testing their probabilities ...")
@@ -21,54 +29,29 @@ def detect(img_path, ann, window_size=20, stride=2):
     box_positions = []
     for x in range(0, img.size[0]-window_size, stride):
         for y in range(0, img.size[1]-window_size, stride):
-            image_patch = img.crop((x, y, x+window_size, y+window_size))
+            image_patch_orig = img.crop((x, y, x+window_size, y+window_size))
             if window_size != 20:
-                image_patch = image_patch.resize((20, 20), Image.ANTIALIAS)
-            prediction = ann.predict(np.asarray([img_to_list(image_patch, flatten=True)]))
-            patch_chars[x][y] = prediction['char_as_int'][0]
-            patch_probabilities[x][y] = prediction['char_probability'][0]
-            if prediction['char_probability'][0] > PATCH_PROB_THRESHOLD:
-                logging.info('\t\t\tDetected character %c with probability %f at position x,y %i, %i',
-                             chr(prediction['char_as_int'][0] + ord('a')), prediction['char_probability'][0], x, y)
-                box_positions.append([x, y])
+                image_patch_orig = image_patch_orig.resize((20, 20), Image.ANTIALIAS)
+            image_patches = [image_patch_orig]
+            for prep_func in prep_funcs:
+                image_patches.append(prep_func(image_patch_orig))
+            image_patches_l = [img_to_list(im, flatten=True) for im in image_patches]
+            prediction = ann.predict(image_patches_l)
+            for i in range(len(image_patches)):
+                patch_chars[x][y] = prediction['char_as_int'][i]
+                patch_probabilities[x][y] = prediction['char_probability'][i]
+                if prediction['char_probability'][i] > prob_threshold:
+                    logging.info('\t\t\tDetected character %c with probability %f at position x,y %i, %i',
+                                 chr(prediction['char_as_int'][i] + ord('a')), prediction['char_probability'][i], x, y)
+                    box_positions.append([x, y])
+                    break
         if y % (img.size[0] / 10) == 0:
             logging.info('\t\tProgress: %s%%', y/img.size[0]*100)
 
     logging.info("\tDetected %s characters with a probability of %s or higher",
-                 len(box_positions), PATCH_PROB_THRESHOLD)
+                 len(box_positions), prob_threshold)
     # Draw boxes around patches with highest probability
     draw_boxes(img, box_positions, window_size)
-
-
-def detect2(img_path, ann, window_size=20, stride=2):
-    img_as_list = img_path_to_list(img_path, flatten=False)
-    img_as_list = thumbnail(img_as_list, (MAX_WIDTH, MAX_HEIGHT))
-
-    # Create image patches
-    logging.info("\tCreating image patches and testing their probabilities ...")
-    patch_chars = np.zeros(img_as_list.shape)
-    patch_probabilities = np.zeros(img_as_list.shape)
-    box_positions = []
-    for y in range(0, len(img_as_list)-window_size, stride):
-        for x in range(0, len(img_as_list[y])-window_size, stride):
-            image_patch = img_as_list[y:y+window_size, x:x+window_size]
-            if window_size != 20:
-                image_patch = image_patch.resize((20, 20), Image.ANTIALIAS)
-            prediction = ann.predict(np.asarray([image_patch.flatten()]))
-            patch_chars[y][x] = prediction['char_as_int'][0]
-            patch_probabilities[y][x] = prediction['char_probability'][0]
-            if prediction['char_probability'][0] > PATCH_PROB_THRESHOLD:
-                logging.info('\t\t\tDetected character %c with probability %f at position x,y %i, %i',
-                             chr(prediction['char_as_int'][0] + ord('a')), prediction['char_probability'][0], x, y)
-                box_positions.append([y, x])
-        if y % (len(img_as_list) / 10) == 0:
-            logging.info('\t\tProgress: %s%%', y/len(img_as_list)*100)
-
-    logging.info("\tDetected %s characters with a probability of %s or higher",
-                 len(box_positions), PATCH_PROB_THRESHOLD)
-    # Draw boxes around patches with highest probability
-    draw_boxes(list_to_img(img_as_list), box_positions, window_size)
-
 
 def resize(img_as_list, size=(20, 20)):
     """
@@ -79,12 +62,6 @@ def resize(img_as_list, size=(20, 20)):
     """
     img = list_to_img(img_as_list)
     img = img.resize(size, Image.ANTIALIAS)
-    return img_to_list(img, flatten=False)
-
-
-def thumbnail(img_as_list, size):
-    img = list_to_img(img_as_list)
-    img.thumbnail(size, Image.ANTIALIAS)
     return img_to_list(img, flatten=False)
 
 
