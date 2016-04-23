@@ -37,12 +37,6 @@ def err_sum_squared(output_layer, input_labels, *args):
     return T.sum((output_layer - input_labels) ** 2)
 
 
-def err_neg_log_likelihood(input_labels, layers, n_batches, l2_norm_squared, lmbda=0.0):
-
-    cost = -T.mean([T.arange(input_labels.shape[0]), input_labels]) + 0.5 * lmbda * l2_norm_squared / n_batches
-    return cost
-
-
 def init_rand_weights(shape, name=""):
     """
     Generate random weights (from the standard normal distribution, scaled) in an x-by-y matrix.

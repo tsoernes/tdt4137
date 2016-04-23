@@ -1,5 +1,6 @@
 from net.net_utils import *
 from net.convnet import ConvNet, FullyConnectedLayer, SoftMaxLayer, ConvPoolLayer
+from theano import tensor as T
 """
 ballpark learning rates for MNIST with different backprop funcs
 BP_SDG_LR = 0.0015
@@ -50,7 +51,7 @@ def convnet_preset_ffnet():
             FullyConnectedLayer(20*20, 25**2, T.nnet.sigmoid),
             SoftMaxLayer(25**2, N_CLASSES)
         ],
-        'err_func': err_sum_squared,
+        'err_func': T.nnet.categorical_crossentropy,  # Categorical cross entropy = negative log likelihood
         'backprop_func': bp_rms_prop,
         'backprop_params': {
             'rho': 0.9,
