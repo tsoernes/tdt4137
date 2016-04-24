@@ -2,23 +2,25 @@ import theano
 from theano import tensor as T
 import numpy as np
 import logging
-from matplotlib import pyplot as plt
+from net.ann import ANN
+from net.net_utils import init_rand_weights
 
-
-class FFNet:
-    def __init__(self, nodes_per_layer, act_funcs, err_func, backprop_func, backprop_params, l_rate=.001):
+class FFNet(ANN):
+    def __init__(self, nodes_per_layer, act_funcs, err_func, backprop_func, backprop_params,
+                 l_rate=.001, batch_size=100):
         """
         layer_shape - number of nodes per layer, including input and output layers
-        act_funcs - list activation functions between the layers. Examples: T.nnet.sigmoid, .softmax, .relu, .categorial_crossentropy
-        err_func - cost/error function. Example: lambda x,y: T.mean(T.nnet.categorical_crossentropy(x, y)).
-        backprop_func - backpropagation function. Example:
+        act_funcs - list activation functions between the layers
+        err_func - cost/error function
+        backprop_func - backpropagation function
         l_rate - Learning rate
         """
         assert len(nodes_per_layer)-1 == len(act_funcs), \
             ("Invalid number of activation functions compared to the number of hidden layers",
              len(nodes_per_layer), len(act_funcs))
+        super(FFNet, self).__init__('FFNet', batch_size)
 
-        logging.info('\tConstructing ANN with nodes per layer: %s, learning rate: %s ', nodes_per_layer, l_rate)
+        logging.info('\tConstructing FFNet with nodes per layer: %s, learning rate: %s ', nodes_per_layer, l_rate)
 
         input_data = T.fmatrix('X')
         input_labels = T.fmatrix('Y')
@@ -27,13 +29,15 @@ class FFNet:
         # Generate initial random weights between each layer
         weights = []
         for i in range(len(nodes_per_layer)-1):
-            weights.append(self.init_rand_weights(nodes_per_layer[i], nodes_per_layer[i+1]))
+            weights.append(init_rand_weights((nodes_per_layer[i], nodes_per_layer[i+1])))
             weights[i].name = 'w' + str(i)
+
         # logging.debug('\tWeight layers: %s', len(weights))
         #logging.info('\tNumber of parameters to train: %s',
         #             sum(param.get_value(borrow=True, return_internal_type=True).size for param in weights))
         # Construct the layers with the given activation functions weights between them
         # logging.info('\tConstructing layers ...')
+
         for i in range(len(weights)):
             layers.append(self.model(layers[i], weights[i], act_funcs[i]))
 
@@ -63,53 +67,11 @@ class FFNet:
             allow_input_downcast=True
         )
 
-    def train_and_test(self, train_x, train_y, test_x, test_y, epochs=200, batch_size=150, plot=True):
-        assert len(train_x) == len(train_y), ("", len(train_x), len(train_y))
-        logging.info('\tTraining and testing for %s epochs ...', epochs)
-        train_success_rates = []
-        test_success_rates = []
-        for i in range(epochs):
-            # Run in batches for increased speed and to avoid running out of memory
-            for j in range(0, len(train_x), batch_size):
-                x_cases = train_x[j:j+batch_size]
-                y_cases = train_y[j:j+batch_size]
-                self.trainer(x_cases, y_cases)
+    def train(self, input_data, input_labels):
+        return self.trainer(input_data, input_labels)
 
-            tr_result = np.zeros(shape=(len(train_x)))
-            for k in range(0, len(train_x), batch_size):
-                tr_result[k:k+batch_size] = self.predictor(train_x[k:k+batch_size])['char_as_int']
-            # Get success rate on training and test data set
-            tr_success_rate = np.mean(np.argmax(train_y, axis=1) == tr_result)
-            te_success_rate = np.mean(np.argmax(test_y, axis=1) == self.predictor(test_x)['char_as_int'])
-            train_success_rates.append(tr_success_rate)
-            test_success_rates.append(te_success_rate)
-
-            if i % (epochs / 5) == 0:
-                logging.info('\t\tProgress: %s%% | Epoch: %s | Success rate (training, test): %s, %s',
-                             (i / epochs)*100, i,
-                             "{:.4f}".format(max(train_success_rates)), "{:.4f}".format(max(test_success_rates)))
-
-        logging.info('\tMax success rate (training | test): %s | %s',
-                     "{:.4f}".format(max(train_success_rates)), "{:.4f}".format(max(test_success_rates)))
-        if plot:
-            plt.title('Fully Connected Feed Forward Net')
-            plt.plot(train_success_rates)
-            plt.plot(test_success_rates)
-            plt.legend(['Train', 'Test'], loc="best")
-            plt.grid(True)
-            plt.yticks(np.arange(0, 1, 0.05))
-            plt.show()
-
-    def predict(self, input_x):
-        return self.predictor(input_x)
-
-    @staticmethod
-    def init_rand_weights(x, y):
-        """
-        Generate random weights (from the standard normal distribution, scaled) in an x-by-y matrix.
-        """
-        return theano.shared(
-            np.asarray(np.random.randn(x, y) * 0.01, dtype=theano.config.floatX))
+    def predict(self, input_data):
+        return self.predictor(input_data)
 
     @staticmethod
     def model(upstream_layer, weights, act_func):
@@ -120,10 +82,5 @@ class FFNet:
         layer = act_func(T.dot(upstream_layer, weights))
         return layer
 
-    @staticmethod
-    def batch(iterable, n=1):
-        l = len(iterable)
-        for ndx in range(0, l, n):
-            yield iterable[ndx:min(ndx + n, l)]
 
 

@@ -22,7 +22,6 @@ class OCRRunner:
         #prep_funcs = [edge_enhance, invert]
         self.prep_funcs = [None]
         self.data_set = load(self.prep_funcs)
-        self.run_ocr()
 
     def run_ocr(self, img_path="./ocr-test6.png", resize_size=0, window_size=22, stride=2, prob_threshold=0.999):
         img = load_img(img_path)
@@ -60,7 +59,7 @@ class OCRRunner:
         self.ffnet = FFNet(**ann_preset)
         self.ffnet.train_and_test(self.data_set.train_x, self.data_set.train_y,
                                   self.data_set.test_x, self.data_set.test_y,
-                                  epochs=epochs, batch_size=10, plot=plot)
+                                  epochs=epochs, plot=plot)
 
     def compare_samples_predictions(self, show=True, save=False):
         """

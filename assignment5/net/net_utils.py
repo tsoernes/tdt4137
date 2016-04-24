@@ -37,6 +37,10 @@ def err_sum_squared(output_layer, input_labels, *args):
     return T.sum((output_layer - input_labels) ** 2)
 
 
+def err_neg_log_likelihood(output_layer, input_labels, *args):
+    return T.mean(T.nnet.categorical_crossentropy(output_layer, input_labels))
+
+
 def init_rand_weights(shape, name=""):
     """
     Generate random weights (from the standard normal distribution, scaled) in an x-by-y matrix.

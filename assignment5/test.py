@@ -1,10 +1,14 @@
 import numpy as np
 import random
+from functools import partial, reduce
 
-np.random.seed(123)
-list1 = np.random.permutation(5)
-np.random.seed(123)
-list2 = np.random.permutation(6)
 
-print(list1, list2)
-assert(list1==list2[:-1])
+def a(x):
+    return x**2
+
+
+def b(x):
+    return x*2
+
+
+func = lambda x: a(b(x))

@@ -157,10 +157,10 @@ def load(prep_funcs=(None,), prep_test=False, random_split=True):
     train_x = np.asarray([img_to_list(img, flatten=True) for img in train_x])
     test_x = np.asarray([img_to_list(img, flatten=True) for img in test_x])
 
-    logging.debug('\tLoaded data set with %s training examples and %s test examples',
-                  len(train_x), len(test_x))
+    logging.debug('\tLoaded data set. Applied %s pre-processing function(s). Split data set with a ratio of %s into '
+                  '%s training examples and %s test examples',
+                  len(prep_funcs), TEST_TO_TRAIN_RATIO, len(train_x), len(test_x))
     #logging.debug("\tData set shapes: train_x %s, train_y %s, test_x %s, test_y %s",
     #              train_x.shape, train_y.shape, test_x.shape, test_y.shape)
     return DataSet(train_x, train_y, test_x, test_y)
 
-load()

@@ -6,9 +6,10 @@ import numpy as np
 import logging
 from matplotlib import pyplot as plt
 from net.net_utils import init_rand_weights, init_zero_weights
+from net.ann import ANN
 
 
-class ConvNet:
+class ConvNet(ANN):
     def __init__(self, layers, err_func, backprop_func, backprop_params,
                  l_rate, batch_size=10):
         """
@@ -20,9 +21,9 @@ class ConvNet:
         :param batch_size: (mini-) batch size. In comparison to regular nets
         :return:
         """
-        self.batch_size = batch_size
+        super(ConvNet, self).__init__("ConvNet", batch_size)
 
-        logging.info('\tConstructing ANN with %s layers. Learning rate: %s. Batch size: %s ',
+        logging.info('\tConstructing ConvNet with %s layers. Learning rate: %s. Batch size: %s ',
                      len(layers), l_rate, batch_size)
         params = []  # Regular weights and bias weights; e.g. everything to be adjusted during training
         for layer in layers:
@@ -34,16 +35,15 @@ class ConvNet:
         input_data = T.fmatrix('X')
         input_labels = T.fmatrix('Y')
 
-        layers[0].activate(input_data, batch_size)
+        layers[0].activate(input_data, self.batch_size)
         for i in range(1, len(layers)):
             prev_layer = layers[i-1]
             current_layer = layers[i]
-            current_layer.activate(prev_layer.output(), batch_size)
+            current_layer.activate(prev_layer.output(), self.batch_size)
 
         output_layer = layers[-1].output_values
 
-        cost = T.mean(T.nnet.categorical_crossentropy(output_layer, input_labels))
-        #cost = err_func(output_layer, input_labels)
+        cost = err_func(output_layer, input_labels)
 
         updates = backprop_func(cost, params, l_rate, **backprop_params)
 
@@ -67,66 +67,15 @@ class ConvNet:
             allow_input_downcast=True
         )
 
-    def train_and_test(self, train_x, train_y, test_x, test_y, epochs=200, plot=True):
-        assert len(train_x) == len(train_y) and len(test_x) == len(test_y), \
-            ("Training", len(train_x), len(train_y), "or testing", len(test_x), len(test_y),
-             "data sets does not have the same amount of data as classifications")
-        logging.info('\tTraining and testing for %s epochs ...', epochs)
+    def train(self, input_data, input_labels):
+        return self.trainer(input_data, input_labels)
 
-        """
-        Both training and testing is done in batches for increased speed and to avoid running out of memory.
-        If len(train_x) % self.batch size != 0 then some training examples will not be trained on. The same applies to
-        testing.
-        """
-        n_training_batches = len(train_x) // self.batch_size
-        n_testing_batches = len(test_x) // self.batch_size
-        train_success_rates = []
-        test_success_rates = []
-        for i in range(epochs):
-            for j in range(n_training_batches):
-                x_cases = train_x[j*self.batch_size:(j+1)*self.batch_size]
-                y_cases = train_y[j*self.batch_size:(j+1)*self.batch_size]
-                self.trainer(x_cases, y_cases)
-
-            # Get success rate on training and test data set
-            tr_result = np.zeros(shape=(n_training_batches*self.batch_size))
-            te_result = np.zeros(shape=(n_testing_batches*self.batch_size))
-            for k in range(n_training_batches):
-                batch = train_x[k*self.batch_size:(k+1)*self.batch_size]
-                tr_result[k*self.batch_size:(k+1)*self.batch_size] = self.predictor(batch)['char_as_int']
-            for l in range(n_testing_batches):
-                batch = test_x[l*self.batch_size:(l+1)*self.batch_size]
-                te_result[l*self.batch_size:(l+1)*self.batch_size] = self.predictor(batch)['char_as_int']
-                # logging.debug('\t\t\t\t L:%s:%s / %s, batch size %s', l, l+self.batch_size, len(test_x), len(batch))
-            # todo: verify that the length of each comparison result set is equal,
-            # and that the sets are equally 'full' (no missing values)
-            tr_success_rate = np.mean(np.argmax(train_y[:n_training_batches*self.batch_size], axis=1) == tr_result)
-            te_success_rate = np.mean(np.argmax(test_y[:n_testing_batches*self.batch_size], axis=1) == te_result)
-            train_success_rates.append(tr_success_rate)
-            test_success_rates.append(te_success_rate)
-
-            if i % (epochs / 20) == 0:
-                logging.info('\t\tProgress: %s%% | Epoch: %s | Success rate (training, test): %s, %s',
-                             (i / epochs)*100, i,
-                             "{:.4f}".format(max(train_success_rates)), "{:.4f}".format(max(test_success_rates)))
-
-        logging.info('\tMax success rate (training | test): %s | %s',
-                     "{:.4f}".format(max(train_success_rates)), "{:.4f}".format(max(test_success_rates)))
-        if plot:
-            plt.title('Convolutional Pooled Net')
-            plt.plot(train_success_rates)
-            plt.plot(test_success_rates)
-            plt.legend(['Train', 'Test'], loc="best")
-            plt.grid(True)
-            plt.yticks(np.arange(0, 1, 0.05))
-            plt.show()
-
-    def predict(self, input_x):
-        return self.predictor(input_x)
+    def predict(self, input_data):
+        return self.predictor(input_data)
 
 
 class FullyConnectedLayer:
-    def __init__(self, n_in, n_out, act_func):
+    def __init__(self, n_in, n_out, act_func, init_weight_func=init_rand_weights):
         """
         Generate a fully connected layer with 1 bias node simulated upstream
         :param act_func: the activation function of the layer
@@ -134,8 +83,8 @@ class FullyConnectedLayer:
         self.n_in = n_in
         self.n_out = n_out
         self.act_func = act_func
-        self.weights = init_rand_weights((n_in, n_out), "w")
-        self.bias_weights = init_rand_weights((n_out,), "b")
+        self.weights = init_weight_func((n_in, n_out), "w")
+        self.bias_weights = init_weight_func((n_out,), "b")
         self.params = [self.weights, self.bias_weights]
         self.output_values = None
 
@@ -155,8 +104,8 @@ class FullyConnectedLayer:
 
 class SoftMaxLayer(FullyConnectedLayer):
     def __init__(self, n_in, n_out):
-        super(SoftMaxLayer, self).__init__(n_in, n_out, T.nnet.softmax, )
-        # todo find out how to initialize softmaxlayer weights as zero, and if it gives better results/faster training
+        super(SoftMaxLayer, self).__init__(n_in, n_out, T.nnet.softmax)
+        #  rand weights seem to perform better than zero weights, even for softmax
 
 
 class ConvPoolLayer:
