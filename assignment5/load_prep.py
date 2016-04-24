@@ -35,6 +35,20 @@ def load_img(img_path):
         raise
 
 
+def load_images():
+    folders = os.listdir(CHARS_PATH)
+    assert len(folders) == N_CLASSES
+    x = []
+    y = []
+    for num, alpha in enumerate(folders):
+        folder = os.listdir(CHARS_PATH + alpha)
+        for filename in folder:
+            path = CHARS_PATH + alpha + "/" + filename
+            x.append(load_img(path))
+            y.append(num)
+    return x, y
+
+
 def img_to_list(img, flatten):
     """
     Can only handle 8-bit gray-scale
@@ -91,58 +105,62 @@ def shuffle_in_unison(a, b, random_permutation=True):
     return shuffled_a, shuffled_b
 
 
-def load(prep_funcs=(None,), random_split=True):
+def load(prep_funcs=(None,), prep_test=False, random_split=True):
     """
     Load images, convert to lists of scaled floats, split into training and test set, then expand training set by
     applying the pre-processing techniques in prep_funcs
-    :param prep_funcs:
-    :param random_split: Boolean whether or not to split the data set into training and test set at a random position (True)
-                    or at a fixed position(false)
-    :return:
+    :param prep_funcs: List of pre-processing functions to apply to the images in the data set
+    :param prep_test: Boolean whether or not the prep the test data set in addition to the training data set
+    :param random_split: Boolean whether or not to split the data set into training and test set at a
+                        random position (True) or at a fixed position(false)
+    :return: namedtuple DataSet
     """
     assert len(prep_funcs) > 0
-    folders = os.listdir(CHARS_PATH)
-    assert len(folders) == N_CLASSES
-    x = []
-    y = []
-    for num, alpha in enumerate(folders):
-        folder = os.listdir(CHARS_PATH + alpha)
-        for filename in folder:
-            path = CHARS_PATH + alpha + "/" + filename
-            x.append(load_img(path))
-            y.append(num)
+    x, y = load_images()
 
-    # Todo: should testing set also be prepped??
-
-    split_index = int(len(x)*TEST_TO_TRAIN_RATIO)
+    split_index = int(len(x) * TEST_TO_TRAIN_RATIO)
     x_shuffled, y_shuffled = shuffle_in_unison(np.asarray(x, dtype=object), np.asarray(y), random_split)
     y_shuffled = convert_y(y_shuffled, N_CLASSES)
-    train_x = x_shuffled[:split_index]
-    train_y = y_shuffled[:split_index]
-    test_x = x_shuffled[split_index:]
-    test_y = y_shuffled[split_index:]
-
-    train_x_prepped = []
-    train_y_prepped = []
     # The y-values (labels) themselves are not prepped/changed in any way, but since there are more training examples
     # there has to be more labels.
-    for prep_func in prep_funcs:
-        if prep_func is None:
-            train_x_prepped.extend(train_x)
-            train_y_prepped.extend(train_y)
-        else:
-            train_x_prepped.extend(map(prep_func, train_x))
-            train_y_prepped.extend(train_y)
-
-    logging.debug('\tLoaded data set and expanded training data set from %s examples to %s examples',
-                  len(train_x), len(train_x_prepped))
-    train_x, train_y = shuffle_in_unison(np.asarray(train_x_prepped, dtype=object), np.asarray(train_y_prepped))
+    if prep_test:
+        x_prepped = []
+        y_prepped = []
+        for prep_func in prep_funcs:
+            if prep_func is None:
+                x_prepped.extend(x_shuffled)
+                y_prepped.extend(y_shuffled)
+            else:
+                x_prepped.extend(map(prep_func, x_shuffled))
+                y_prepped.extend(y_shuffled)
+        train_x = x_prepped[:split_index]
+        train_y = y_prepped[:split_index]
+        test_x = x_prepped[split_index:]
+        test_y = y_prepped[split_index:]
+    else:
+        train_x = x_shuffled[:split_index]
+        train_y = y_shuffled[:split_index]
+        test_x = x_shuffled[split_index:]
+        test_y = y_shuffled[split_index:]
+        train_x_prepped = []
+        train_y_prepped = []
+        for prep_func in prep_funcs:
+            if prep_func is None:
+                train_x_prepped.extend(train_x)
+                train_y_prepped.extend(train_y)
+            else:
+                train_y_prepped.extend(map(prep_func, train_x))
+                train_y_prepped.extend(train_y)
+        train_x = train_x_prepped
+        train_y = train_y_prepped
 
     train_x = np.asarray([img_to_list(img, flatten=True) for img in train_x])
     test_x = np.asarray([img_to_list(img, flatten=True) for img in test_x])
 
-    logging.debug("\tData set shapes: train_x %s, train_y %s, test_x %s, test_y %s",
-                  train_x.shape, train_y.shape, test_x.shape, test_y.shape)
+    logging.debug('\tLoaded data set with %s training examples and %s test examples',
+                  len(train_x), len(test_x))
+    #logging.debug("\tData set shapes: train_x %s, train_y %s, test_x %s, test_y %s",
+    #              train_x.shape, train_y.shape, test_x.shape, test_y.shape)
     return DataSet(train_x, train_y, test_x, test_y)
 
 load()

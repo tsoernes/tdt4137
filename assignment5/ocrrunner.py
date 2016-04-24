@@ -40,7 +40,6 @@ class OCRRunner:
 
         self.run_convnet(batch_size=len(self.prep_funcs), plot=False, epochs=10)
         #self.run_ffnet(plot=False, epochs=20)
-        # for window_size in range(58, 63):
         ocr_prep_funcs = [edge_enhance]
         detect(self.convnet, img, ocr_prep_funcs, window_size, stride, prob_threshold)
 
