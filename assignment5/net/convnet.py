@@ -1,11 +1,11 @@
 import theano
 from theano import tensor as T
-from theano.tensor.signal.downsample import max_pool_2d  # deprecated
+# from theano.tensor.signal.downsample import max_pool_2d  # deprecated
 from theano.tensor.signal.pool import pool_2d
 import numpy as np
 import logging
 from matplotlib import pyplot as plt
-from net.net_utils import init_rand_weights, init_zero_weights, err_neg_log_likelihood
+from net.net_utils import init_rand_weights, init_zero_weights
 
 
 class ConvNet:
@@ -21,7 +21,6 @@ class ConvNet:
         :return:
         """
         self.batch_size = batch_size
-        logging.info('\tConstructing ANN with %s layers. Learning rate: %s ', len(layers), l_rate)
 
         logging.info('\tConstructing ANN with %s layers. Learning rate: %s. Batch size: %s ',
                      len(layers), l_rate, batch_size)
@@ -42,8 +41,11 @@ class ConvNet:
             current_layer.activate(prev_layer.output(), batch_size)
 
         output_layer = layers[-1].output_values
-        cost = err_func(output_layer, input_labels)
-        updates = backprop_func(cost, params, l_rate, backprop_params)
+
+        cost = T.mean(T.nnet.categorical_crossentropy(output_layer, input_labels))
+        #cost = err_func(output_layer, input_labels)
+
+        updates = backprop_func(cost, params, l_rate, **backprop_params)
 
         prediction = T.argmax(output_layer, axis=1)
         prediction_value = T.max(output_layer, axis=1)
@@ -153,7 +155,7 @@ class FullyConnectedLayer:
 
 class SoftMaxLayer(FullyConnectedLayer):
     def __init__(self, n_in, n_out):
-        super(SoftMaxLayer, self).__init__(n_in, n_out, T.nnet.softmax)
+        super(SoftMaxLayer, self).__init__(n_in, n_out, T.nnet.softmax, )
         # todo find out how to initialize softmaxlayer weights as zero, and if it gives better results/faster training
 
 
@@ -214,7 +216,11 @@ class ConvPoolLayer:
         assert self.output_values is not None, 'Asking for output before activating layer'
         return self.output_values
 
-    def get_output_shape(self):
+    @property
+    def output_shape(self):
+        """
+        :return: output shape in same format as defined in __init__ input shape
+        """
         batch_size = self.input_shape[0]
         if self.local_receptive_field_size[0] != self.local_receptive_field_size[1] \
                 or self.pool_size[0] != self.pool_size[1]:
@@ -222,7 +228,7 @@ class ConvPoolLayer:
                                       self.local_receptive_field_size, ", or the pool,",
                                       self.pool_size, ", is non-square")
         after_conv = self.input_shape[2] - self.local_receptive_field_size[0]
-        after_pool = np.ceil(after_conv/2.0)
+        after_pool = int(np.ceil(after_conv/float(self.pool_size[0])))
         shape = (batch_size, self.n_feature_maps, after_pool, after_pool)
         return shape
 
