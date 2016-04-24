@@ -7,7 +7,7 @@ from PIL import Image
 from utils import *
 
 TEST_TO_TRAIN_RATIO = 0.9
-CHARS_PATH = './chars74k-lite/chars74k-lite/'
+CHARS_PATH = '../chars74k-lite/chars74k-lite/'
 N_CLASSES = 26
 
 

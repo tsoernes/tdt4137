@@ -22,11 +22,10 @@ class FFNet(ANN):
             ("Invalid number of activation functions compared to the number of hidden layers",
              len(nodes_per_layer), len(act_funcs))
         super(FFNet, self).__init__('FFNet', l_rate, batch_size)
-
         logging.info('\tConstructing FFNet with nodes per layer: %s, learning rate: %s ', nodes_per_layer, l_rate)
 
         input_data = T.fmatrix('X')
-        input_labels = T.fmatrix('Y')
+        input_labels = T.bmatrix('Y')
         layers = [input_data]
 
         # Generate initial random weights between each layer
@@ -49,9 +48,10 @@ class FFNet(ANN):
 
         output_layer = layers[-1]
         cost = err_func(output_layer, input_labels)
+        updates = backprop_func(cost, weights, self.l_rate, **backprop_params)
+
         prediction = T.argmax(output_layer, axis=1)
         prediction_value = T.max(output_layer, axis=1)
-        updates = backprop_func(cost, weights, self.l_rate, **backprop_params)
 
         # logging.info('\tConstructing functions ...')
         self.trainer = theano.function(

@@ -23,18 +23,18 @@ class ConvNet(ANN):
         :return:
         """
         super(ConvNet, self).__init__("ConvNet", l_rate, batch_size)
-
         logging.info('\tConstructing ConvNet with %s layers. Learning rate: %s. Batch size: %s ',
                      len(layers), l_rate, batch_size)
+
+        input_data = T.fmatrix('X')
+        input_labels = T.bmatrix('Y')
+
         params = []  # Regular weights and bias weights; e.g. everything to be adjusted during training
         for layer in layers:
             for param in layer.params:
                 params.append(param)
         logging.info('\tNumber of parameters to train: %s',
                      sum(param.get_value(borrow=True, return_internal_type=True).size for param in params))
-
-        input_data = T.fmatrix('X')
-        input_labels = T.fmatrix('Y')
 
         layers[0].activate(input_data, self.batch_size)
         for i in range(1, len(layers)):
