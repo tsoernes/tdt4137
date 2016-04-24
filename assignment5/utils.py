@@ -20,3 +20,9 @@ def invert(img):
 def mirror(img):
     "Mirror left to right"
     return ImageOps.mirror(img)
+
+
+def i2c(intt):
+    print(intt, type(intt))
+    "convert integer to character"
+    return chr(intt + ord('a'))

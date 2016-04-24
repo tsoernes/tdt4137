@@ -44,7 +44,7 @@ def img_to_list(img, flatten):
     """
     img = img.convert('L')
     img_bytes = img.tobytes("raw", 'L')
-    ints = np.fromstring(img_bytes, dtype='uint16')
+    ints = np.fromstring(img_bytes, dtype='uint8')
     scaled_floats = ints.astype(dtype='float32') / (2**8 - 1)
     if flatten:
         return scaled_floats.flatten()
@@ -71,10 +71,19 @@ def list_to_img(img_as_list, img_size=None):
     return img
 
 
-def shuffle_in_unison(a, b):
+def shuffle_in_unison(a, b, random_permutation=True):
+    """
+    Shuffle two lists in unison
+    :param a:
+    :param b:
+    :param random_permutation: if false, will use a static seed, effectively sorting the input arrays the same way each call
+    :return:
+    """
     assert len(a) == len(b)
     shuffled_a = np.empty(a.shape, dtype=a.dtype)
     shuffled_b = np.empty(b.shape, dtype=b.dtype)
+    if not random_permutation:
+        np.random.seed(123)  # only applies to one np.random call; calling np.random again will use a different seed
     permutation = np.random.permutation(len(a))
     for old_index, new_index in enumerate(permutation):
         shuffled_a[new_index] = a[old_index]
@@ -82,16 +91,18 @@ def shuffle_in_unison(a, b):
     return shuffled_a, shuffled_b
 
 
-def load(prep_funcs=()):
+def load(prep_funcs=(None,), random_split=True):
     """
     Load images, convert to lists of scaled floats, split into training and test set, then expand training set by
     applying the pre-processing techniques in prep_funcs
     :param prep_funcs:
+    :param random_split: Boolean whether or not to split the data set into training and test set at a random position (True)
+                    or at a fixed position(false)
     :return:
     """
+    assert len(prep_funcs) > 0
     folders = os.listdir(CHARS_PATH)
     assert len(folders) == N_CLASSES
-
     x = []
     y = []
     for num, alpha in enumerate(folders):
@@ -100,12 +111,12 @@ def load(prep_funcs=()):
             path = CHARS_PATH + alpha + "/" + filename
             x.append(load_img(path))
             y.append(num)
-    logging.info("\tLoaded %s examples. Splitting into testing and training data sets with a ratio of %s",
-                 len(x), TEST_TO_TRAIN_RATIO)
 
-    x_shuffled, y_shuffled = shuffle_in_unison(np.asarray(x, dtype=object), np.asarray(y))
+    # Todo: should testing set also be prepped??
+
+    split_index = int(len(x)*TEST_TO_TRAIN_RATIO)
+    x_shuffled, y_shuffled = shuffle_in_unison(np.asarray(x, dtype=object), np.asarray(y), random_split)
     y_shuffled = convert_y(y_shuffled, N_CLASSES)
-    split_index = int(len(x_shuffled)*TEST_TO_TRAIN_RATIO)
     train_x = x_shuffled[:split_index]
     train_y = y_shuffled[:split_index]
     test_x = x_shuffled[split_index:]
@@ -116,16 +127,22 @@ def load(prep_funcs=()):
     # The y-values (labels) themselves are not prepped/changed in any way, but since there are more training examples
     # there has to be more labels.
     for prep_func in prep_funcs:
-        train_x_prepped.extend(map(prep_func, train_x))
-        train_y_prepped.extend(train_y)
-    if prep_funcs:
-        train_x_prepped.extend(train_x)
-        train_y_prepped.extend(train_y)
-        logging.debug('\tExpanded training data set from %s examples to %s examples',
-                      len(train_x), len(train_x_prepped))
-        train_x, train_y = shuffle_in_unison(np.asarray(train_x_prepped, dtype=object), np.asarray(train_y_prepped))
+        if prep_func is None:
+            train_x_prepped.extend(train_x)
+            train_y_prepped.extend(train_y)
+        else:
+            train_x_prepped.extend(map(prep_func, train_x))
+            train_y_prepped.extend(train_y)
+
+    logging.debug('\tLoaded data set and expanded training data set from %s examples to %s examples',
+                  len(train_x), len(train_x_prepped))
+    train_x, train_y = shuffle_in_unison(np.asarray(train_x_prepped, dtype=object), np.asarray(train_y_prepped))
 
     train_x = np.asarray([img_to_list(img, flatten=True) for img in train_x])
     test_x = np.asarray([img_to_list(img, flatten=True) for img in test_x])
+
+    logging.debug("\tData set shapes: train_x %s, train_y %s, test_x %s, test_y %s",
+                  train_x.shape, train_y.shape, test_x.shape, test_y.shape)
     return DataSet(train_x, train_y, test_x, test_y)
 
+load()
