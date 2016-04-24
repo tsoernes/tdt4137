@@ -1,17 +1,17 @@
 import logging
+import timeit
 
 import numpy as np
 from PIL import Image
+from PIL import ImageDraw
+
 from net.ffnet import FFNet
 from net.convnet import ConvNet
 from net.ffnet_preset import ffnet_preset_1
 from net.convnet_preset import convnet_preset_1
 from utils import edge_enhance, edge_enhance_more, mirror, invert, i2c
 from detector import detect
-from load_prep import load, list_to_img
-import timeit
-from load_prep import load_img
-from PIL import ImageDraw
+from load_prep import load, list_to_img, load_img
 
 
 class OCRRunner:
@@ -19,7 +19,6 @@ class OCRRunner:
         self.ffnet = None
         self.convnet = None
         logging.basicConfig(level=logging.DEBUG)
-        #prep_funcs = [edge_enhance, invert]
         self.prep_funcs = [None]
         self.data_set = load(self.prep_funcs)
 

@@ -1,4 +1,5 @@
 from collections import namedtuple
+
 from PIL import Image, ImageFilter, ImageOps
 
 DataSet = namedtuple("DataSet", 'train_x, train_y, test_x, test_y')

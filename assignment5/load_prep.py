@@ -1,8 +1,10 @@
+import os
+import logging
+
 import numpy as np
 from PIL import Image
-import os
+
 from utils import *
-import logging
 
 TEST_TO_TRAIN_RATIO = 0.9
 CHARS_PATH = './chars74k-lite/chars74k-lite/'

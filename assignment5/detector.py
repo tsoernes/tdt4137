@@ -1,8 +1,10 @@
+import logging
+
 import numpy as np
 from PIL import Image
 from PIL import ImageDraw
 from load_prep import load_img, img_to_list, list_to_img
-import logging
+
 from utils import edge_enhance, edge_enhance_more, mirror, invert, i2c
 
 MAX_WIDTH = MAX_HEIGHT = 200

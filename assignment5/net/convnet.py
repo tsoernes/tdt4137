@@ -1,10 +1,11 @@
+import abc
+import logging
+
 import theano
 from theano import tensor as T
-# from theano.tensor.signal.downsample import max_pool_2d  # deprecated
 from theano.tensor.signal.pool import pool_2d
 import numpy as np
-import logging
-from matplotlib import pyplot as plt
+
 from net.net_utils import init_rand_weights, init_zero_weights
 from net.ann import ANN
 
@@ -21,7 +22,7 @@ class ConvNet(ANN):
         :param batch_size: (mini-) batch size. In comparison to regular nets
         :return:
         """
-        super(ConvNet, self).__init__("ConvNet", batch_size)
+        super(ConvNet, self).__init__("ConvNet", l_rate, batch_size)
 
         logging.info('\tConstructing ConvNet with %s layers. Learning rate: %s. Batch size: %s ',
                      len(layers), l_rate, batch_size)
@@ -42,9 +43,7 @@ class ConvNet(ANN):
             current_layer.activate(prev_layer.output(), self.batch_size)
 
         output_layer = layers[-1].output_values
-
         cost = err_func(output_layer, input_labels)
-
         updates = backprop_func(cost, params, l_rate, **backprop_params)
 
         prediction = T.argmax(output_layer, axis=1)
@@ -67,26 +66,43 @@ class ConvNet(ANN):
             allow_input_downcast=True
         )
 
-    def train(self, input_data, input_labels):
+    def _train(self, input_data, input_labels):
         return self.trainer(input_data, input_labels)
 
     def predict(self, input_data):
         return self.predictor(input_data)
 
 
-class FullyConnectedLayer:
+class Layer:
+    __metaclass__ = abc.ABCMeta
+
+    def __init__(self, act_func):
+        """
+        :param act_func: the activation function of the layer
+        """
+        self.act_func = act_func
+        self.output_values = None
+
+    @abc.abstractmethod
+    def activate(self, input_values, batch_size):
+        pass
+
+    def output(self):
+        assert self.output_values is not None, 'Asking for output before activating layer'
+        return self.output_values
+
+
+class FullyConnectedLayer(Layer):
     def __init__(self, n_in, n_out, act_func, init_weight_func=init_rand_weights):
         """
         Generate a fully connected layer with 1 bias node simulated upstream
-        :param act_func: the activation function of the layer
         """
+        super(FullyConnectedLayer, self).__init__(act_func)
         self.n_in = n_in
         self.n_out = n_out
-        self.act_func = act_func
         self.weights = init_weight_func((n_in, n_out), "w")
         self.bias_weights = init_weight_func((n_out,), "b")
         self.params = [self.weights, self.bias_weights]
-        self.output_values = None
 
     def activate(self, input_values, batch_size):
         """
@@ -97,18 +113,14 @@ class FullyConnectedLayer:
         input_values = input_values.reshape((batch_size, self.n_in))
         self.output_values = self.act_func(T.dot(input_values, self.weights) + self.bias_weights)
 
-    def output(self):
-        assert self.output_values is not None, 'Asking for output before activating layer'
-        return self.output_values
-
 
 class SoftMaxLayer(FullyConnectedLayer):
     def __init__(self, n_in, n_out):
         super(SoftMaxLayer, self).__init__(n_in, n_out, T.nnet.softmax)
-        #  rand weights seem to perform better than zero weights, even for softmax
+        #  rand weights seem to perform better than zero weights, even with softmax
 
 
-class ConvPoolLayer:
+class ConvPoolLayer(Layer):
     conv_func = staticmethod(T.nnet.conv2d)
     pool_func = staticmethod(pool_2d)
 
@@ -126,11 +138,11 @@ class ConvPoolLayer:
         :param init_weight_func:
         :param init_bias_weight_func:
         """
+        super(ConvPoolLayer, self).__init__(act_func)
         self.input_shape = input_shape
         self.n_feature_maps = n_feature_maps
         self.filter_shape = (n_feature_maps, input_shape[1]) + local_receptive_field_size
         self.local_receptive_field_size = local_receptive_field_size
-        self.act_func = act_func
         self.pool_size = pool_size
         self.pool_mode = pool_mode
         self.weights = init_rand_weights(self.filter_shape, "conv2poolWeights")
@@ -160,10 +172,6 @@ class ConvPoolLayer:
             mode=self.pool_mode  # ‘max’, ‘sum’, ‘average_inc_pad’ or ‘average_exc_pad’
         )
         self.output_values = self.act_func(pooled + self.bias_weights.dimshuffle('x', 0, 'x', 'x'))
-
-    def output(self):
-        assert self.output_values is not None, 'Asking for output before activating layer'
-        return self.output_values
 
     @property
     def output_shape(self):

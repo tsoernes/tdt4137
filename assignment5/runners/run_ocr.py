@@ -1,5 +1,6 @@
-from ocrrunner import OCRRunner
 import sys
+
+from main_runner import OCRRunner
 
 print("Arguments: path resize_to_size window_size stride probability_threshold")
 path = str(sys.argv[1])
@@ -10,4 +11,4 @@ probability_threshold = int(sys.argv[4])
 print(path)
 
 runner = OCRRunner()
-runner.run_ocr(path, resize_size, window_size, stride, prob_threshold)
+runner.run_ocr(path, resize_to_size, window_size, stride, probability_threshold)

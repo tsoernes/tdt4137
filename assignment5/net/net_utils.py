@@ -14,13 +14,13 @@ def bp_sgd(cost, params, l_rate, **kwargs):
     return updates
 
 
-def bp_rms_prop(cost, weights, l_rate, rho=0.9, epsilon=1e-6, **kwargs):
+def bp_rms_prop(cost, params, l_rate, rho=0.9, epsilon=1e-6, **kwargs):
     """
     Backpropagation function: RMS-prop
     """
-    grads = T.grad(cost, weights)
+    grads = T.grad(cost, params)
     updates = []
-    for p, g in zip(weights, grads):
+    for p, g in zip(params, grads):
         acc = theano.shared(p.get_value() * 0.)
         acc_new = rho * acc + (1 - rho) * g**2
         gradient_scaling = T.sqrt(acc_new + epsilon)
@@ -38,13 +38,15 @@ def err_sum_squared(output_layer, input_labels, *args):
 
 
 def err_neg_log_likelihood(output_layer, input_labels, *args):
+    """
+    Error function: Categorical cross-entropy / negative log likelihood
+    """
     return T.mean(T.nnet.categorical_crossentropy(output_layer, input_labels))
 
 
 def init_rand_weights(shape, name=""):
     """
-    Generate random weights (from the standard normal distribution, scaled) in an x-by-y matrix.
-    Should be used by most layers.
+    Generate random weights (from the standard normal distribution, scaled).
     """
     return theano.shared(
         np.asarray(np.random.randn(*shape) * 0.01, dtype=theano.config.floatX), name=name)
@@ -52,6 +54,6 @@ def init_rand_weights(shape, name=""):
 
 def init_zero_weights(shape, name=""):
     """
-    Generate weighs with value 0. Should be used for Softmax layers.
+    Generate weighs with value 0.
     """
     return theano.shared(np.zeros(shape, dtype=theano.config.floatX), name=name)

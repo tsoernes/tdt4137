@@ -1,4 +1,4 @@
-from ocrrunner import OCRRunner
+from main_runner import OCRRunner
 
 runner = OCRRunner()
 runner.run_ffnet()

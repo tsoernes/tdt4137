@@ -1,9 +1,12 @@
+import logging
+
 import theano
 from theano import tensor as T
 import numpy as np
-import logging
+
 from net.ann import ANN
 from net.net_utils import init_rand_weights
+
 
 class FFNet(ANN):
     def __init__(self, nodes_per_layer, act_funcs, err_func, backprop_func, backprop_params,
@@ -18,7 +21,7 @@ class FFNet(ANN):
         assert len(nodes_per_layer)-1 == len(act_funcs), \
             ("Invalid number of activation functions compared to the number of hidden layers",
              len(nodes_per_layer), len(act_funcs))
-        super(FFNet, self).__init__('FFNet', batch_size)
+        super(FFNet, self).__init__('FFNet', l_rate, batch_size)
 
         logging.info('\tConstructing FFNet with nodes per layer: %s, learning rate: %s ', nodes_per_layer, l_rate)
 
@@ -48,7 +51,7 @@ class FFNet(ANN):
         cost = err_func(output_layer, input_labels)
         prediction = T.argmax(output_layer, axis=1)
         prediction_value = T.max(output_layer, axis=1)
-        updates = backprop_func(cost, weights, l_rate, **backprop_params)
+        updates = backprop_func(cost, weights, self.l_rate, **backprop_params)
 
         # logging.info('\tConstructing functions ...')
         self.trainer = theano.function(
@@ -67,7 +70,7 @@ class FFNet(ANN):
             allow_input_downcast=True
         )
 
-    def train(self, input_data, input_labels):
+    def _train(self, input_data, input_labels):
         return self.trainer(input_data, input_labels)
 
     def predict(self, input_data):
