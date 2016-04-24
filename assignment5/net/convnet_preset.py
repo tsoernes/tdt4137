@@ -10,32 +10,32 @@ BP_RMS_PROP_LR = 0.0006
 N_CLASSES = 26
 
 
-def convnet_preset_1():
-    batch_size = 10
+def convnet_preset_1(batch_size=10):
     cp_layer1 = ConvPoolLayer(
                 input_shape=(batch_size, 1, 20, 20),
-                n_feature_maps=20,
+                n_feature_maps=30,
                 act_func=T.nnet.relu
     )
     cp_layer2 = ConvPoolLayer(
-                input_shape=cp_layer1.get_output_shape(),
-                n_feature_maps=40,
+                input_shape=cp_layer1.output_shape,
+                n_feature_maps=60,
                 act_func=T.nnet.relu
     )
     params = {
         'layers': [
             cp_layer1,
             cp_layer2,
-            FullyConnectedLayer(cp_layer2.get_output_shape(), 100, T.nnet.sigmoid),
-            SoftMaxLayer(100, N_CLASSES)
+            FullyConnectedLayer(np.prod(cp_layer2.output_shape[1:]), 300, T.nnet.sigmoid),
+            SoftMaxLayer(300, N_CLASSES)
         ],
-        'err_func': err_sum_squared,
+        'err_func': T.nnet.categorical_crossentropy,
+        #'err_func': err_sum_squared,
         'backprop_func': bp_rms_prop,
         'backprop_params': {
             'rho': 0.9,
             'epsilon': 1e-6
         },
-        'l_rate': 0.0005,
+        'l_rate': 0.0010,
         'batch_size': batch_size
     }
     return params
